@@ -123,6 +123,12 @@ public class App implements Serializable
         JavaRDD<Rating> testing = ratings.filter(new Function<Tuple2<Long, Rating>, Boolean>(){
             public Boolean call(Tuple2<Long,Rating> t){return t._1 >= 8;}
         }).values().cache();
+        JavaRDD<Rating> myRating = sc.textFile(logFile + "/freshman.dat").map(new Function<String, Rating>() {
+            public Rating call(String s) throws Exception {
+                String str[] = s.split("::");
+                return new Rating(Integer.parseInt(str[0]), Integer.parseInt(str[1]), Double.parseDouble(str[2]));
+            }
+        });
         long n = testing.count();
         MatrixFactorizationModel model = null;
         MatrixFactorizationModel bestModel = null;
@@ -136,7 +142,7 @@ public class App implements Serializable
             {
                 for(int numlter = 15; numlter < 17; numlter ++)
                 {
-                    model = ALS.train(JavaRDD.toRDD(training), rank, numlter, lambda);
+                    model = ALS.train(JavaRDD.toRDD(training.union(myRating)), rank, numlter, lambda);
                     Compute com = new Compute();
                     double rsme = com.computeRmse(model, testing, n);//出错行
                     if(bestRsme > rsme) {
@@ -150,15 +156,6 @@ public class App implements Serializable
             }
         }
         System.out.println("best rank: " + bestRank + ", best numlter: " + bestNumlter + ", best lambda: " + bestLambda);
-        JavaRDD<Rating> myRating = ratings.values().filter(new Function<Rating, Boolean>(){
-            public Boolean call(Rating r)
-            {
-                if(r.user() == 1)
-                    return true;
-                else
-                    return false;
-            }
-        });
         final List<Integer> ratedMovies = myRating.map(new Function<Rating, Integer>(){
             public Integer call(Rating r)
             {
@@ -174,7 +171,7 @@ public class App implements Serializable
         final List<Rating> preRating = bestModel.predict(candidates.mapToPair(new PairFunction<Integer, Integer, Integer>() {
             public Tuple2<Integer, Integer> call(Integer i) {
 
-                return new Tuple2<Integer, Integer>(1, i);
+                return new Tuple2<Integer, Integer>(0, i);
             }
         })).collect();
         Collections.sort(preRating, new ComparatorForRating());
