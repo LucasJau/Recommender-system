@@ -138,20 +138,16 @@ public class App implements Serializable
         double bestLambda = 0.0;
         for(int rank = 10; rank < 12; rank ++)
         {
-            for(double lambda = 0.1; lambda < 0.17; lambda += 0.03)
+            for(int numlter = 15; numlter < 18; numlter ++)
             {
-                for(int numlter = 15; numlter < 17; numlter ++)
-                {
-                    model = ALS.train(JavaRDD.toRDD(training.union(myRating)), rank, numlter, lambda);
-                    Compute com = new Compute();
-                    double rsme = com.computeRmse(model, testing, n);//出错行
-                    if(bestRsme > rsme) {
-                        bestRank = rank;
-                        bestLambda = lambda;
-                        bestNumlter = numlter;
-                        bestRsme = rsme;
-                        bestModel = model;
-                    }
+                model = ALS.train(JavaRDD.toRDD(training.union(myRating)), rank, numlter, 0.01);
+                Compute com = new Compute();
+                double rsme = com.computeRmse(model, testing, n);
+                if(bestRsme > rsme) {
+                    bestRank = rank;
+                    bestNumlter = numlter;
+                    bestRsme = rsme;
+                    bestModel = model;
                 }
             }
         }
@@ -175,7 +171,6 @@ public class App implements Serializable
             }
         })).collect();
         Collections.sort(preRating, new ComparatorForRating());
-        System.out.println("Recommendations for you:\n");
         List recMovies = movies.filter(new Function<Tuple2<Integer, String>, Boolean>(){
             public Boolean call(Tuple2<Integer, String> t)
             {
@@ -187,6 +182,7 @@ public class App implements Serializable
                 return false;
             }
         }).values().collect();
+        System.out.println(bestNumlter +" "+ bestRank+" " + bestRsme);
         return recMovies;
     }
 }
